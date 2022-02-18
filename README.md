@@ -126,3 +126,48 @@ fn hello() {
         .ok(); // Option<bool>
 }
 ```
+
+#### 6. เปรียบเทียบความแตกต่างของ  as,  Into<>, From<> และ Transmute
+- `as` can only be used to transform limited set of types or forms of types known to compiler (such as numeric to numeric type). So, it can do more complex transformations or coercions.
+- `from` and `into` is used to convert from type to type (1 to 1), powered by trait system. It can be used to convert arbitrary-type as long as there is an implementation. implementation of `from` infer `into` but not the other way. So, try to implement `from` first (this was due to historical reason).
+- `transmute` just reinterpret the bytes into new datatype. This operation destroy type safety so it is an unsafe operation.
+
+#### 7. Enum ใน Rust มีข้อที่เหมือน และ แตกต่างจากภาษาอื่นๆ อย่างใรบ้าง
+- `enum` in most C-family language only allow sum type of simple values that take no parameter (such as boolean).
+- `enum` in Rust is more like `enum` in ML-family language. It essentially is tagged union in C with more ease of use.
+- `union` also exists in Rust but is unsafe to read or write (it essentially is `transmute`). It is useful when interface with C.
+
+#### 8. Rust Attributes คืออะไร เอามาใช้ประโยชน์ได้อย่างไรบ้าง
+- rust attribute is metadata attached to module, crate, or item.
+- It can be used to signal something to compiler, or other tools such as linter.
+- Usages for example:
+  - `derive`- automatically derive trait.
+  - `cfg`- evaluate compile-time expressions or conditions. (like `constexpr` in C++)
+
+#### 9. ใน std::thread จงอธิบายความแตกต่างของการ pass Closure เทียบกับ pass Function ในการเรียก spawn ในการสร้าง Thread
+- closure can capture the environment, so you can send data from the executing function into another thread at the time of spawning (The data need to have `Send`).
+- When capturing the value, ownership and lifetime rules still apply. Usually, you need to use `move ||` to force moving the object into the spawned thread.
+
+#### 10. Send trait marker กับ Sync trait marker ต่างกันอย่างไร และมีข้อยกเว้นอะไรบ้าง
+- `Send` marks that the object is safe to send (transfer ownership) between threads. Almost every type in rust is safe to send between threads.
+- `Sync` marks that the object is safe to send the reference between threads. `T` is `Sync` iff. `&T` is `Send`.
+- `Send` is auto-implemented if all data in the type is `Send`. The same goes for `Sync` as well.
+- `Send` and `Sync` is not implemeted for raw pointer because they enforce no safety.
+- `Rc` is not `Send` nor `Sync` because references are counted in the way that is not atomic. Use `Arc` instead.
+- `UnsafeCell`, `Cell`, and `RefCell` are not `Sync` because their inner mutability is not implemented in a way that is atomic. Use `Mutex` instead.
+- They are unsafe marker trait (in case you want to implement them manually).
+
+#### 11. อธิบาย concept ความต่าง ของ Rc กับ Arc
+- `Rc` is a reference-counted pointer type, when the `Rc` is cloned, it will increment the counter. When it's dropped, the counter decrements.
+- `Rc` is not `Send` because when used across multiple threads, if multiple threads try to update the counter at the same time, the counter will corrupt and might leak memory or segfault. (There might be some clones of `Rc` that are still in the original thread).
+- `Rc` is not `Sync` because `&Rc` can be used to clone new `Rc` (increment the counter).
+- `Arc` use atomic counter, so it can be send between thread.
+
+#### 12. อธิบายว่า Rust handle race condition อย่างไรได้บ้าง
+1. Any object can't be mutably referenced more than 1 at the current scope.
+  - So you can be sure that a single object can't be changed from more than 1 thread at the same time. This is checked at compile time.
+2. Atomicity of inner mutability of some types is enforced through `Sync` thread.
+  - So if a type has inner mutability (which survives condition checking in number 1.), it will still be checked at compile time.
+3. Atomicity of multiple ownerships of some types is enforced through `Send` thread.
+  - So if a type can have multiple ownerships (which survives condition checking in number 1.) it will still be checked at compile time.
+4. Race condition other than data race must be implement at a higher level using constructs like `Mutex`, `RwLock`, etc.
