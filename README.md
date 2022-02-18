@@ -45,3 +45,84 @@ impl<'a> World<'a> for Hello<'a> {
     }
 }
 ```
+
+#### 4. เล่าปัญหาที่สามารถเกิดขี้นกับ code นี้แล้วเสนอวิธีแก้ไข
+```rust
+struct Plusplus {
+  value: &mut i32
+}
+
+impl Plusplus {
+  pub fn plusplus (&mut self) -> i32 {
+    *self.value += 1;
+    *self.value
+  }
+}
+```
+- lifetime parameter is not explicitly defined.
+- just define it.
+```rust
+struct Plusplus<'a> {
+    value: &'a mut i32
+}
+
+impl<'a> Plusplus<'a> {
+    pub fn plusplus (&mut self) -> i32 {
+        *self.value += 1;
+        *self.value
+    }
+}
+```
+
+#### 5. อธิบายความแตกต่าง และ behavior ของ panic,  และการ propagate error โดยใช้ Result และ Option  ยกตัวอย่าง usecase ที่ เหมาะสมสำหรับแต่ละกรณี และวิธี handling จาก upstream calling function
+- panic means unrecoverable error, `panic!()` should be used when the error is unexpected and program has no particular way to recover from it (so the program will crash).
+- there is a way to recover from panic but it's not desirable.
+- `Option<T>` is a way to wrap nullable value. The value either exists (`Some(x)`) or null (`None`)
+- `Result<T, E>` provides more information about that nullity. It is usually used to represent results of certain action. The value is either success (`Ok(x)`) or failed with extra information about the failure (`Err(e)`).
+- To extract value out of `Option<T>` or `Result<T, E>`, you can use pattern matching.
+```rust
+if let Some(a) = op {
+    // you can use a here
+} else  {
+    // handle null here
+}
+
+match res {
+    Ok(a) => {
+        // use a here
+    },
+    Err(e) => {
+        // use e here
+    },
+}
+```
+
+- To compose multiple `Option<T>` or `Result<T, E>`, you can use `?` operator.
+
+```rust
+fn hello() -> Result<u32, String> {
+    // type that use '?' must be the same with return type
+    let res1 = Result::<u32, String>::Ok(10_u32)?;
+    // operator '?' can call `into` to transform type
+    // before return
+    let res2 = Result::<u32, &str>::Err("hello")?;
+    Ok(res1 + res2)
+}
+```
+
+- You can also handle it functional-style.
+
+```rust
+fn compose(a: u16) -> Result<u32, String> {
+    Ok(a as u32)
+}
+
+fn hello() {
+    Some(16_u16) // Option<u16>
+        .ok_or(String::from("error a")) // Result<u16, String>
+        .and_then(compose) // Result<u32, String>
+        .map(|res| res == 22) // Result<bool, String>
+        .map_err(|err| println!("{}", &err)) // Result<bool, ()>
+        .ok(); // Option<bool>
+}
+```
